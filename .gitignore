@@ -2,4 +2,7 @@ Lethal Company/
 
 bin/
 obj/
+/.git/
+*.user
 
+/.idea/

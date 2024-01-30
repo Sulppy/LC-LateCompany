@@ -19,20 +19,28 @@ internal static class WeatherSync {
 	public static LevelWeatherType CurrentWeather = LevelWeatherType.None;
 }
 
-[HarmonyPatch(typeof(RoundManager), "__rpc_handler_1193916134")]
+[HarmonyPatch(typeof(RoundManager))]
 [HarmonyWrapSafe]
-internal static class __rpc_handler_1193916134_Patch {
-	public static FieldInfo RPCExecStage = typeof(NetworkBehaviour).GetField("__rpc_exec_stage", BindingFlags.NonPublic | BindingFlags.Instance);
+internal static class RoundManagerPatch
+{
+	public static FieldInfo RPCExecStage =
+		typeof(NetworkBehaviour).GetField("__rpc_exec_stage", BindingFlags.NonPublic | BindingFlags.Instance);
 
+	[HarmonyPatch("__rpc_handler_1193916134")]
 	[HarmonyPrefix]
-	private static bool Prefix(NetworkBehaviour target, FastBufferReader reader, __RpcParams rpcParams) {
+	private static bool __rpc_handler_1193916134_Prefix(NetworkBehaviour target, FastBufferReader reader,
+		__RpcParams rpcParams)
+	{
 		NetworkManager networkManager = target.NetworkManager;
-		if (networkManager != null && networkManager.IsListening && !networkManager.IsHost) {
-			try {
+		if (networkManager != null && networkManager.IsListening && !networkManager.IsHost)
+		{
+			try
+			{
 				ByteUnpacker.ReadValueBitPacked(reader, out int randomSeed);
 				ByteUnpacker.ReadValueBitPacked(reader, out int levelID);
 
-				if (reader.Position < reader.Length) {
+				if (reader.Position < reader.Length)
+				{
 					ByteUnpacker.ReadValueBitPacked(reader, out int weatherId);
 					weatherId -= 0xFF;
 
@@ -49,7 +57,8 @@ internal static class __rpc_handler_1193916134_Patch {
 
 				return false;
 			}
-			catch {
+			catch
+			{
 				// Something went wrong, default to original method.
 				WeatherSync.DoOverride = false;
 				reader.Seek(0);
@@ -59,12 +68,11 @@ internal static class __rpc_handler_1193916134_Patch {
 
 		return true;
 	}
-}
 
-[HarmonyPatch(typeof(RoundManager), "SetToCurrentLevelWeather")]
-internal static class SetToCurrentLevelWeather_Patch {
+	[HarmonyPatch("SetToCurrentLevelWeather")]
 	[HarmonyPrefix]
-	private static void Prefix() {
+	private static void SetToCurrentLevelWeatherPrefix()
+	{
 		if (!WeatherSync.DoOverride) return;
 		RoundManager.Instance.currentLevel.currentWeather = WeatherSync.CurrentWeather;
 		WeatherSync.DoOverride = false;
