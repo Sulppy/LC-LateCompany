@@ -61,7 +61,7 @@ internal class StartOfRoundPatch
 						(FastBufferWriter)BeginSendClientRpc.Invoke(sor,
 							new object[] { 4249638645U, clientRpcParams, 0 });
 					BytePacker.WriteValueBitPacked(fastBufferWriter, clientId);
-					EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 2729232387U, clientRpcParams, 0 });
+					EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 4249638645U, clientRpcParams, 0 });
 				}
 				
 				{ 
