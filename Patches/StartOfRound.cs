@@ -27,9 +27,20 @@ internal class StartOfRoundPatch
 	private static void OnPlayerConnectedClientRpcPatch(ulong clientId, int assignedPlayerObjectId, int levelID, int randomSeed)
 	{
 		StartOfRound sor = StartOfRound.Instance;
+		RoundManager rm = RoundManager.Instance;
+		
+		ClientRpcParams clientRpcParams = new()
+		{
+			Send = new ClientRpcSendParams()
+			{
+				TargetClientIds = new List<ulong> { clientId },
+			},
+		};
+		
 		
 		List<PlayerControllerB> allplayers = PJoin.GetAllPlayers();
 		PlayerControllerB ply = allplayers[assignedPlayerObjectId];
+		
 		if (allplayers.Count + 1 > sor.allPlayerScripts.Length)
 			PJoin.SetLobbyJoinable(false);
 
@@ -44,10 +55,53 @@ internal class StartOfRoundPatch
 			{
 				StartOfRound.Instance.allPlayerObjects[assignedPlayerObjectId]
 					.GetComponentInChildren<PlayerControllerB>().playerUsername = connectedplayer.playerUsername;
-				StartOfRound.Instance.SyncSuitsServerRpc();
-				StartOfRound.Instance.PlayerLoadedServerRpc(connectedplayer.playerClientId);
-				StartOfRound.Instance.SyncShipUnlockablesServerRpc();
+				
+				{ 
+					FastBufferWriter fastBufferWriter =
+						(FastBufferWriter)BeginSendClientRpc.Invoke(sor,
+							new object[] { 4249638645U, clientRpcParams, 0 });
+					BytePacker.WriteValueBitPacked(fastBufferWriter, clientId);
+					EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 2729232387U, clientRpcParams, 0 });
+				}
+				
+				{ 
+					FastBufferWriter fastBufferWriter =
+						(FastBufferWriter)BeginSendClientRpc.Invoke(sor,
+							new object[] { 744998938U, clientRpcParams, 0 });
+					EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 744998938U, clientRpcParams, 0 });
+				}
+				
 				StartOfRound.Instance.StartTrackingAllPlayerVoices();
+				
+				if (sor.IsServer && !sor.inShipPhase)
+				{
+					GameNetworkManager.Instance.gameHasStarted = true;
+					// Tell the new client to generate the level.
+					{
+						FastBufferWriter fastBufferWriter =
+							(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
+								new object[] { 1193916134U, clientRpcParams, 0 });
+						BytePacker.WriteValueBitPacked(fastBufferWriter, randomSeed);
+						BytePacker.WriteValueBitPacked(fastBufferWriter, levelID);
+						BytePacker.WriteValueBitPacked(fastBufferWriter, (int)rm.currentLevel.currentWeather + 0xFF);
+						EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 1193916134U, clientRpcParams, 0 });
+				
+					}
+
+					// And also tell them that everyone is done generating it.
+					{ 
+						FastBufferWriter fastBufferWriter =
+							(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
+								new object[] { 2729232387U, clientRpcParams, 0 });
+						EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 2729232387U, clientRpcParams, 0 });
+					}
+					
+					StartOfRound.Instance.LoadUnlockables();
+					StartOfRound.Instance.LoadShipGrabbableItems();
+					
+				}
+				sor.livingPlayers = PJoin.GetAlivePlayers().Count;
+				
 			}
 			catch (Exception ex)
 			{
@@ -56,39 +110,6 @@ internal class StartOfRoundPatch
 			}
 			LateCompanyPlugin.logger.LogInfo("Sync successful");
 		}
-		
-		if (sor.IsServer && !sor.inShipPhase && !ply.IsSpawned)
-		{
-			RoundManager rm = RoundManager.Instance;
-
-			ClientRpcParams clientRpcParams = new()
-			{
-				Send = new ClientRpcSendParams()
-				{
-					TargetClientIds = new List<ulong> { clientId },
-				},
-			};
-
-			// Tell the new client to generate the level.
-			{
-				FastBufferWriter fastBufferWriter =
-					(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
-						new object[] { 1193916134U, clientRpcParams, 0 });
-				BytePacker.WriteValueBitPacked(fastBufferWriter, randomSeed);
-				BytePacker.WriteValueBitPacked(fastBufferWriter, levelID);
-				BytePacker.WriteValueBitPacked(fastBufferWriter, (int)rm.currentLevel.currentWeather + 0xFF);
-				EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 1193916134U, clientRpcParams, 0 });
-			}
-
-			// And also tell them that everyone is done generating it.
-			{ 
-				FastBufferWriter fastBufferWriter =
-					(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
-						new object[] { 2729232387U, clientRpcParams, 0 });
-				EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 2729232387U, clientRpcParams, 0 });
-			}
-		}
-		sor.livingPlayers = PJoin.GetAlivePlayers().Count;
 	}
 
 	[HarmonyPatch("OnPlayerDC")]
@@ -96,8 +117,8 @@ internal class StartOfRoundPatch
 	[HarmonyPrefix]
 	private static void OnPlayerDCPatch()
 	{
-		if (StartOfRound.Instance.inShipPhase ||
-		    (LateCompanyPlugin.AllowJoiningWhileLanded && StartOfRound.Instance.shipHasLanded) && !PJoin.LobbyJoinable)
+		if ((StartOfRound.Instance.inShipPhase ||
+		    (LateCompanyPlugin.AllowJoiningWhileLanded && StartOfRound.Instance.shipHasLanded)) && !PJoin.LobbyJoinable)
 			PJoin.SetLobbyJoinable(true);
 	}
 

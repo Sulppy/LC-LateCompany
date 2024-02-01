@@ -14,7 +14,7 @@ using LateCompany.Patches;
 using Unity.Netcode;
 
 public static class PluginInfo {
-	public const string GUID = "twig.latecompany";
+	public const string GUID = "LateCompany.latecompany";
 	public const string PrintName = "Late Company";
 	public const string Version = "1.0.17";
 }
@@ -60,7 +60,7 @@ namespace LateCompany
 			Patcher.PatchAll(typeof(StartOfRoundPatch));
 			//Patcher.PatchAll(typeof(QuickMenuManagerPatch)); // We don't need this patch, if the lobby is joinable, then the invite friend button turns on itself
 			Patcher.PatchAll(typeof(GameNetworkManagerPatch));
-			Patcher.PatchAll(typeof(RoundManagerPatch));
+			//Patcher.PatchAll(typeof(RoundManagerPatch));
 		}
 		
 	}
@@ -84,32 +84,15 @@ namespace LateCompany.Core
 			
 			public static void SetLobbyJoinable(bool joinable)
 			{
-				if (GameNetworkManager.Instance != null)
+				if (GameNetworkManager.Instance.currentLobby != null)
 				{
 					LobbyJoinable = joinable;
 					GameNetworkManager.Instance.SetLobbyJoinable(joinable);
 					LateCompanyPlugin.logger.LogMessage(joinable ? "Lobby set to joinable." : "Lobby set to not joinable");
-
 					QuickMenuManager quickMenu = FindObjectOfType<QuickMenuManager>();
 					if (quickMenu) quickMenu.inviteFriendsTextAlpha.alpha = joinable ? 1f : 0.2f;
 				}
 				else LateCompanyPlugin.logger.LogError("Lobby is null");
-			}
-			
-			public static void ServerSync(int assignedPlayerObjectId)
-			{
-				PlayerControllerB connectedplayer = StartOfRound.Instance.allPlayerScripts[assignedPlayerObjectId];
-				if (connectedplayer.IsSpawned)
-				{
-					LateCompanyPlugin.logger.LogInfo("Starting sync players");
-					StartOfRound.Instance.allPlayerObjects[assignedPlayerObjectId]
-						.GetComponentInChildren<PlayerControllerB>().playerUsername = connectedplayer.playerUsername;
-					StartOfRound.Instance.SyncSuitsServerRpc();
-					StartOfRound.Instance.PlayerLoadedServerRpc(connectedplayer.playerClientId);
-					StartOfRound.Instance.SyncShipUnlockablesServerRpc();
-					StartOfRound.Instance.StartTrackingAllPlayerVoices();
-					LateCompanyPlugin.logger.LogInfo("Sync successful");
-				}
 			}
 
 			public static List<PlayerControllerB> GetAllPlayers()
@@ -125,20 +108,6 @@ namespace LateCompany.Core
 				}
 
 				return list;
-			}
-			
-			private static PlayerControllerB GetThisPlayer(ulong clientId)
-			{
-				for (int index = 0; index < StartOfRound.Instance.allPlayerScripts.Length; ++index)
-				{
-					if (StartOfRound.Instance.allPlayerScripts[index].isPlayerControlled && StartOfRound.Instance.allPlayerScripts[index].playerClientId == clientId)
-					{
-						return StartOfRound.Instance.allPlayerScripts[index];
-					}
-				}
-			
-				LateCompanyPlugin.logger.LogMessage("Player do not found!");
-				return StartOfRound.Instance.allPlayerScripts[0];
 			}
 			
 			public static List<PlayerControllerB> GetAlivePlayers()

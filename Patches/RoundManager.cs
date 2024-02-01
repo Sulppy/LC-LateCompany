@@ -52,7 +52,7 @@ internal static class RoundManagerPatch
 				}
 
 				RPCExecStage.SetValue(target, RpcEnum.Client);
-				(target as RoundManager).GenerateNewLevelClientRpc(randomSeed, levelID);
+				(target as RoundManager)?.GenerateNewLevelClientRpc(randomSeed, levelID);
 				RPCExecStage.SetValue(target, RpcEnum.None);
 
 				return false;
