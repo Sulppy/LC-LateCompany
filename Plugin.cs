@@ -11,11 +11,12 @@ using BepInEx.Configuration;
 
 using HarmonyLib;
 using LateCompany.Patches;
+using Unity.Netcode;
 
 public static class PluginInfo {
 	public const string GUID = "twig.latecompany";
 	public const string PrintName = "Late Company";
-	public const string Version = "1.0.15";
+	public const string Version = "1.0.17";
 }
 
 
@@ -95,27 +96,19 @@ namespace LateCompany.Core
 				else LateCompanyPlugin.logger.LogError("Lobby is null");
 			}
 			
-			public static void ServerSync(ulong clientId)
+			public static void ServerSync(int assignedPlayerObjectId)
 			{
-				PlayerControllerB connectedplayer = GetThisPlayer(clientId);
+				PlayerControllerB connectedplayer = StartOfRound.Instance.allPlayerScripts[assignedPlayerObjectId];
 				if (connectedplayer.IsSpawned)
 				{
-					List<PlayerControllerB> allplayers = GetAllPlayers();
-					for (int index = 0; index < allplayers.Count; index++)
-					{
-						if (allplayers[index].playerClientId == connectedplayer.playerClientId)
-						{
-							LateCompanyPlugin.logger.LogInfo("Starting sync players");
-							StartOfRound.Instance.allPlayerScripts[index].playerUsername = connectedplayer.playerUsername;
-							StartOfRound.Instance.SyncSuitsServerRpc();
-							StartOfRound.Instance.SyncSuitsClientRpc();
-							StartOfRound.Instance.PlayerLoadedServerRpc(connectedplayer.playerClientId);
-							StartOfRound.Instance.PlayerLoadedClientRpc(connectedplayer.playerClientId);
-							StartOfRound.Instance.StartTrackingAllPlayerVoices();
-							LateCompanyPlugin.logger.LogInfo("Sync successful");
-							break;
-						}
-					}
+					LateCompanyPlugin.logger.LogInfo("Starting sync players");
+					StartOfRound.Instance.allPlayerObjects[assignedPlayerObjectId]
+						.GetComponentInChildren<PlayerControllerB>().playerUsername = connectedplayer.playerUsername;
+					StartOfRound.Instance.SyncSuitsServerRpc();
+					StartOfRound.Instance.PlayerLoadedServerRpc(connectedplayer.playerClientId);
+					StartOfRound.Instance.SyncShipUnlockablesServerRpc();
+					StartOfRound.Instance.StartTrackingAllPlayerVoices();
+					LateCompanyPlugin.logger.LogInfo("Sync successful");
 				}
 			}
 
@@ -136,11 +129,9 @@ namespace LateCompany.Core
 			
 			private static PlayerControllerB GetThisPlayer(ulong clientId)
 			{
-				int index;
-				List<PlayerControllerB> allPlayers = GetAllPlayers();
-				for (index = 0; index < GetAllPlayers().Count; index++)
+				for (int index = 0; index < StartOfRound.Instance.allPlayerScripts.Length; ++index)
 				{
-					if (allPlayers[index].playerClientId == clientId)
+					if (StartOfRound.Instance.allPlayerScripts[index].isPlayerControlled && StartOfRound.Instance.allPlayerScripts[index].playerClientId == clientId)
 					{
 						return StartOfRound.Instance.allPlayerScripts[index];
 					}

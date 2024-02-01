@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using System.Collections.Generic;
 
@@ -35,7 +36,26 @@ internal class StartOfRoundPatch
 		// Make their player model visible.
 		ply.DisablePlayerModel(sor.allPlayerObjects[assignedPlayerObjectId], true, true);
 
-		PJoin.ServerSync(clientId);
+		PlayerControllerB connectedplayer = StartOfRound.Instance.allPlayerScripts[assignedPlayerObjectId];
+		if (connectedplayer.IsSpawned)
+		{
+			LateCompanyPlugin.logger.LogInfo("Starting sync players");
+			try
+			{
+				StartOfRound.Instance.allPlayerObjects[assignedPlayerObjectId]
+					.GetComponentInChildren<PlayerControllerB>().playerUsername = connectedplayer.playerUsername;
+				StartOfRound.Instance.SyncSuitsServerRpc();
+				StartOfRound.Instance.PlayerLoadedServerRpc(connectedplayer.playerClientId);
+				StartOfRound.Instance.SyncShipUnlockablesServerRpc();
+				StartOfRound.Instance.StartTrackingAllPlayerVoices();
+			}
+			catch (Exception ex)
+			{
+				LateCompanyPlugin.logger.LogError($"Sync error: {ex}");
+
+			}
+			LateCompanyPlugin.logger.LogInfo("Sync successful");
+		}
 		
 		if (sor.IsServer && !sor.inShipPhase && !ply.IsSpawned)
 		{
@@ -61,7 +81,7 @@ internal class StartOfRoundPatch
 			}
 
 			// And also tell them that everyone is done generating it.
-			{
+			{ 
 				FastBufferWriter fastBufferWriter =
 					(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
 						new object[] { 2729232387U, clientRpcParams, 0 });
