@@ -110,6 +110,8 @@ namespace LateCompany.Core
 				return list;
 			}
 			
+			
+			
 			public static List<PlayerControllerB> GetAlivePlayers()
 			{
 				return (from player in GetAllPlayers()

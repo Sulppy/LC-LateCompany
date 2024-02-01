@@ -41,20 +41,28 @@ internal class StartOfRoundPatch
 		List<PlayerControllerB> allplayers = PJoin.GetAllPlayers();
 		PlayerControllerB ply = allplayers[assignedPlayerObjectId];
 		
-		if (allplayers.Count + 1 > sor.allPlayerScripts.Length)
+		if (allplayers.Count + 1 > sor.allPlayerScripts.Length && PJoin.LobbyJoinable)
 			PJoin.SetLobbyJoinable(false);
 
 		// Make their player model visible.
 		ply.DisablePlayerModel(sor.allPlayerObjects[assignedPlayerObjectId], true, true);
 
 		PlayerControllerB connectedplayer = StartOfRound.Instance.allPlayerScripts[assignedPlayerObjectId];
-		if (connectedplayer.IsSpawned)
+		if (!connectedplayer.IsSpawned)
 		{
 			LateCompanyPlugin.logger.LogInfo("Starting sync players");
 			try
 			{
 				StartOfRound.Instance.allPlayerObjects[assignedPlayerObjectId]
 					.GetComponentInChildren<PlayerControllerB>().playerUsername = connectedplayer.playerUsername;
+				
+				{ 
+					FastBufferWriter fastBufferWriter =
+						(FastBufferWriter)BeginSendClientRpc.Invoke(sor,
+							new object[] { 682230258U, clientRpcParams, 0 });
+					BytePacker.WriteValueBitPacked(fastBufferWriter, clientId);
+					EndSendClientRpc.Invoke(sor, new object[] { fastBufferWriter, 682230258U, clientRpcParams, 0 });
+				}
 				
 				{ 
 					FastBufferWriter fastBufferWriter =
@@ -95,11 +103,9 @@ internal class StartOfRoundPatch
 								new object[] { 2729232387U, clientRpcParams, 0 });
 						EndSendClientRpc.Invoke(rm, new object[] { fastBufferWriter, 2729232387U, clientRpcParams, 0 });
 					}
-					
-					StartOfRound.Instance.LoadUnlockables();
-					StartOfRound.Instance.LoadShipGrabbableItems();
-					
 				}
+				/*sor.LoadUnlockables();
+				sor.LoadShipGrabbableItems();*/
 				sor.livingPlayers = PJoin.GetAlivePlayers().Count;
 				
 			}
@@ -114,7 +120,7 @@ internal class StartOfRoundPatch
 
 	[HarmonyPatch("OnPlayerDC")]
 	[HarmonyWrapSafe]
-	[HarmonyPrefix]
+	[HarmonyPostfix]
 	private static void OnPlayerDCPatch()
 	{
 		if ((StartOfRound.Instance.inShipPhase ||
