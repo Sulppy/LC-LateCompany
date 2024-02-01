@@ -16,7 +16,7 @@ using Unity.Netcode;
 public static class PluginInfo {
 	public const string GUID = "LateCompany.latecompany";
 	public const string PrintName = "Late Company";
-	public const string Version = "1.0.17";
+	public const string Version = "1.0.19";
 }
 
 
