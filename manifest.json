@@ -2,6 +2,6 @@
 	"name": "LateCompanyFork",
 	"version_number": "1.0.19",
 	"website_url": "https://github.com/Sulppy/LC-LateCompany",
-	"description": "A mod to allow players to join after the game starts.\nWith sync fix.",
+	"description": "A mod to allow players to join after the game starts.\nWith sync fix.\nOriginal mod - https://github.com/ANormalTwig/LC-LateCompany",
 	"dependencies": ["BepInEx-BepInExPack-5.4.2100"]
 }
