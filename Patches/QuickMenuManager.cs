@@ -1,19 +1,23 @@
 using HarmonyLib;
+using LateCompany.Core;
 
 namespace LateCompany.Patches;
 
-[HarmonyPatch(typeof(QuickMenuManager), nameof(QuickMenuManager.DisableInviteFriendsButton))]
-internal static class DisableInviteFriendsButton_Patch {
+[HarmonyPatch(typeof(QuickMenuManager))]
+internal class QuickMenuManagerPatch {
+	[HarmonyPatch("DisableInviteFriendsButton")]
 	[HarmonyPrefix]
-	private static bool Prefix() { return false; }
-}
-
-[HarmonyPatch(typeof(QuickMenuManager), nameof(QuickMenuManager.InviteFriendsButton))]
-internal static class InviteFriendsButton_Patch {
+	private static bool DisableInviteFriendsButtonPrefix()
+	{
+		return !PJoin.LobbyJoinable;
+	}
+	
+	[HarmonyPatch("InviteFriendsButton")]
 	[HarmonyPrefix]
-	private static bool Prefix() {
-		if (Plugin.LobbyJoinable) GameNetworkManager.Instance.InviteFriendsUI();
-
+	private static bool InviteFriendsButtonPrefix()
+	{
+		GameNetworkManager net = GameNetworkManager.Instance;
+		if (PJoin.LobbyJoinable) net.InviteFriendsUI();
 		return false;
 	}
 }
