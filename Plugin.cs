@@ -11,7 +11,6 @@ using BepInEx.Configuration;
 
 using HarmonyLib;
 using LateCompany.Patches;
-using Unity.Netcode;
 
 public static class PluginInfo {
 	public const string GUID = "LateCompany.latecompany";
@@ -29,18 +28,12 @@ namespace LateCompany
 
 		internal static ManualLogSource logger;
 
-		private static LateCompanyPlugin Instance;
-
 		public static bool AllowJoiningWhileLanded = false;
 
 		private static Harmony Patcher;
 		
 		private void Awake()
 		{
-			if (Instance == null)
-			{
-				Instance = this;
-			}
 			configLateJoinOrbitOnly = Config.Bind("General", "Allow joining while landed", false,
 				"Allow players to join while the ship is landed. (Will probably break some things)");
 			AllowJoiningWhileLanded = configLateJoinOrbitOnly.Value;
@@ -48,7 +41,7 @@ namespace LateCompany
 			logger = BepInEx.Logging.Logger.CreateLogSource("LateCompany.LateCompany");
 			Patcher = new Harmony(PluginInfo.GUID);
 			AllowJoiningWhileLanded = configLateJoinOrbitOnly.Value;
-			
+			logger.LogInfo($"AllowJoiningWhileLanded is {AllowJoiningWhileLanded}");
 			logger.LogInfo("LateCompany loaded. Patching...");
 			PatchAll();
 			logger.LogInfo("Completed patching.");
@@ -65,22 +58,13 @@ namespace LateCompany
 		
 	}
 }
+
 namespace LateCompany.Core
 	{
 
 		internal class PJoin : MonoBehaviour
 		{
-			public static PJoin Instance;
-
 			public static bool LobbyJoinable = true;
-			
-			private void Awake()
-			{
-				if (Instance == null)
-				{
-					Instance = this;
-				}
-			}
 			
 			public static void SetLobbyJoinable(bool joinable)
 			{
@@ -109,8 +93,6 @@ namespace LateCompany.Core
 
 				return list;
 			}
-			
-			
 			
 			public static List<PlayerControllerB> GetAlivePlayers()
 			{
