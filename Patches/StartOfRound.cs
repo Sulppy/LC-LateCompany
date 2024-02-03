@@ -40,16 +40,15 @@ internal class StartOfRoundPatch
 		
 		List<PlayerControllerB> allplayers = PJoin.GetAllPlayers();
 		PlayerControllerB ply = allplayers[assignedPlayerObjectId];
+		PlayerControllerB connectedplayer = StartOfRound.Instance.allPlayerScripts[assignedPlayerObjectId];
 		
 		if (allplayers.Count + 1 > sor.allPlayerScripts.Length && PJoin.LobbyJoinable)
 			PJoin.SetLobbyJoinable(false);
-
-		// Make their player model visible.
-		ply.DisablePlayerModel(sor.allPlayerObjects[assignedPlayerObjectId], true, true);
-
-		PlayerControllerB connectedplayer = StartOfRound.Instance.allPlayerScripts[assignedPlayerObjectId];
-		if (!connectedplayer.IsSpawned)
+		
+		if (connectedplayer.IsSpawned)
 		{
+			// Make their player model visible.
+			ply.DisablePlayerModel(sor.allPlayerObjects[assignedPlayerObjectId], true, true);
 			LateCompanyPlugin.logger.LogInfo("Starting sync players");
 			try
 			{
