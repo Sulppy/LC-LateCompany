@@ -141,6 +141,7 @@ namespace LateCompany.Core
 			{
 				try
 				{
+					LateCompanyPlugin.logger.LogMessage("Start sync unlockables");
 					int[] playerSuitIDs = new int[4];
 					for (int index = 0; index < 4; ++index)
 						playerSuitIDs[index] = sor.allPlayerScripts[index].currentSuitID;
@@ -154,9 +155,11 @@ namespace LateCompany.Core
 					{
 						if (index > 175)
 						{
-							LateCompanyPlugin.logger.LogWarning("Attempted to sync more than 175 unlockables which is not allowed");
+							LateCompanyPlugin.logger.LogWarning(
+								"Attempted to sync more than 175 unlockables which is not allowed");
 							break;
 						}
+
 						intList1.Add(array1[index].unlockableID);
 						vector3List1.Add(sor.unlockablesList.unlockables[array1[index].unlockableID]
 							.placedPosition);
@@ -182,11 +185,6 @@ namespace LateCompany.Core
 						if (array2[index].itemProperties.isScrap)
 							intList3.Add(array2[index].scrapValue);
 					}
-
-					sor.SyncShipUnlockablesClientRpc(playerSuitIDs,
-						sor.shipRoomLights.areLightsOn,
-						vector3List1.ToArray(), vector3List2.ToArray(), intList1.ToArray(), intList2.ToArray(),
-						intList3.ToArray(), intList4.ToArray());
 					
 					{
 						FastBufferWriter bufferWriter =
@@ -202,7 +200,7 @@ namespace LateCompany.Core
 							bufferWriter.WriteValueSafe(vector3List1.ToArray());
 						bool flag3 = vector3List2.ToArray() != null;
 						bufferWriter.WriteValueSafe(in flag3);
-						if (flag3)
+						if (flag3)	
 							bufferWriter.WriteValueSafe(vector3List2.ToArray());
 						bool flag4 = intList1.ToArray() != null;
 						bufferWriter.WriteValueSafe(in flag4);
@@ -221,6 +219,7 @@ namespace LateCompany.Core
 						if (flag7)
 							bufferWriter.WriteValueSafe(intList4.ToArray());
 						EndSendClientRpc.Invoke(sor, new object[]{bufferWriter, 4156335180U, clientRpcParams, RpcDelivery.Reliable});
+						LateCompanyPlugin.logger.LogMessage("End sync");
 					}
 				}
 				catch (Exception ex)

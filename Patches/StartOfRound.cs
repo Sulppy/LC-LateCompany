@@ -24,12 +24,6 @@ internal class StartOfRoundPatch
 
 	private static readonly MethodInfo EndSendClientRpc =
 		typeof(NetworkBehaviour).GetMethod("__endSendClientRpc", BindingFlags.NonPublic | BindingFlags.Instance);
-	
-	private static readonly MethodInfo BeginSendServerRpc =
-		typeof(NetworkBehaviour).GetMethod("__beginSendServerRpc", BindingFlags.NonPublic | BindingFlags.Instance);
-
-	private static readonly MethodInfo EndSendServerRpc =
-		typeof(NetworkBehaviour).GetMethod("__endSendServerRpc", BindingFlags.NonPublic | BindingFlags.Instance);
 
 	// Best guess at getting new players to load into the map after the game starts.
 	[HarmonyPatch("OnPlayerConnectedClientRpc")]
@@ -46,11 +40,6 @@ internal class StartOfRoundPatch
 				TargetClientIds = new List<ulong> { clientId },
 			},
 		};
-
-		ServerRpcParams serverRpcParams = new()
-		{
-			Send = new ServerRpcSendParams()
-		};
 		
 		List<PlayerControllerB> allplayers = PJoin.GetAllPlayers();
 		PlayerControllerB ply = allplayers[assignedPlayerObjectId];
@@ -60,9 +49,9 @@ internal class StartOfRoundPatch
 		
 		// Make their player model visible.
 			
-		if (connectedplayer.isPlayerControlled)
+		if (connectedplayer.justConnected && !connectedplayer.isPlayerControlled)
 		{
-			LateCompanyPlugin.logger.LogMessage("Starting sync players");
+			LateCompanyPlugin.logger.LogMessage("Starting sync player");
 
 			try
 			{
@@ -71,7 +60,15 @@ internal class StartOfRoundPatch
 				
 				ply.DisablePlayerModel(sor.allPlayerObjects[assignedPlayerObjectId], true, true);
 				
-				PlayerSync.SyncUnlockables(clientRpcParams);
+				{
+					FastBufferWriter fastBufferWriter =
+						(FastBufferWriter)BeginSendClientRpc.Invoke(sor,
+							new object[] { 2369901769U, clientRpcParams, 0 });
+					EndSendClientRpc.Invoke(sor,
+						new object[] { fastBufferWriter, 2369901769U, clientRpcParams, 0 });
+				}
+				
+				//PlayerSync.SyncUnlockables(clientRpcParams);
 
 				StartOfRound.Instance.StartTrackingAllPlayerVoices();
 
