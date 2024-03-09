@@ -1,8 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<LangVersion>11</LangVersion>
+		<LangVersion>12</LangVersion>
 		<TargetFramework>net472</TargetFramework>
 		<Version>1.0.19</Version>
+		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 	
 	<ItemGroup>

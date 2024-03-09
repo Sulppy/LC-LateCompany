@@ -23,7 +23,7 @@ internal static class WeatherSync {
 [HarmonyWrapSafe]
 internal static class RoundManagerPatch
 {
-	public static FieldInfo RPCExecStage =
+	private static FieldInfo RPCExecStage =
 		typeof(NetworkBehaviour).GetField("__rpc_exec_stage", BindingFlags.NonPublic | BindingFlags.Instance);
 
 	[HarmonyPatch("__rpc_handler_1193916134")]
@@ -32,7 +32,7 @@ internal static class RoundManagerPatch
 		__RpcParams rpcParams)
 	{
 		NetworkManager networkManager = target.NetworkManager;
-		if (networkManager != null && networkManager.IsListening && !networkManager.IsHost)
+		if (networkManager != null && networkManager.IsListening && networkManager.IsHost)
 		{
 			try
 			{
@@ -65,7 +65,6 @@ internal static class RoundManagerPatch
 				return true;
 			}
 		}
-
 		return true;
 	}
 

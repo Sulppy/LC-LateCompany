@@ -18,7 +18,7 @@ using Steamworks.Data;
 public static class PluginInfo {
 	public const string GUID = "LateCompany.latecompany";
 	public const string PrintName = "Late Company";
-	public const string Version = "1.0.19";
+	public const string Version = "1.1.0";
 }
 
 
@@ -75,7 +75,7 @@ namespace LateCompany.Core
 
 			public static void SetLobbyJoinable(bool joinable = true)
 			{
-				if (GameNetworkManager.Instance.currentLobby.HasValue)
+				if (GameNetworkManager.Instance.currentLobby.HasValue && NetworkManager.Singleton.IsHost)
 				{
 					LobbyJoinable = joinable;
 					GameNetworkManager.Instance.SetLobbyJoinable(joinable);
@@ -92,7 +92,6 @@ namespace LateCompany.Core
 					repeat = true;
 					SetLobbyJoinable(joinable);
 				}
-
 				repeat = false;
 			}
 
@@ -145,10 +144,10 @@ namespace LateCompany.Core
 					int[] playerSuitIDs = new int[4];
 					for (int index = 0; index < 4; ++index)
 						playerSuitIDs[index] = sor.allPlayerScripts[index].currentSuitID;
-					List<int> intList1 = new List<int>();
-					List<Vector3> vector3List1 = new List<Vector3>();
-					List<Vector3> vector3List2 = new List<Vector3>();
-					List<int> intList2 = new List<int>();
+					List<int> intList1 = [];
+					List<Vector3> vector3List1 = [];
+					List<Vector3> vector3List2 = [];
+					List<int> intList2 = [];
 					PlaceableShipObject[] array1 = FindObjectsOfType<PlaceableShipObject>().OrderBy(x => x.unlockableID)
 						.ToArray();
 					for (int index = 0; index < array1.Length; ++index)
@@ -170,8 +169,8 @@ namespace LateCompany.Core
 					}
 
 					GrabbableObject[] array2 = FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).OrderBy(x => Vector3.Distance(x.transform.position, Vector3.zero)).ToArray();
-					List<int> intList3 = new List<int>();
-					List<int> intList4 = new List<int>();
+					List<int> intList3 = [];
+					List<int> intList4 = [];
 					for (int index = 0; index < array2.Length; ++index)
 					{
 						if (index > 250)
@@ -188,7 +187,7 @@ namespace LateCompany.Core
 					
 					{
 						FastBufferWriter bufferWriter =
-							(FastBufferWriter)BeginSendClientRpc.Invoke(sor, new object[]{ 4156335180U, clientRpcParams, 0});
+							(FastBufferWriter)BeginSendClientRpc.Invoke(sor, [4156335180U, clientRpcParams, 0]);
 						bool flag1 = playerSuitIDs != null;
 						bufferWriter.WriteValueSafe(in flag1);
 						if (flag1)
@@ -218,16 +217,13 @@ namespace LateCompany.Core
 						bufferWriter.WriteValueSafe(in flag7);
 						if (flag7)
 							bufferWriter.WriteValueSafe(intList4.ToArray());
-						EndSendClientRpc.Invoke(sor, new object[]{bufferWriter, 4156335180U, clientRpcParams, RpcDelivery.Reliable});
+						EndSendClientRpc.Invoke(sor, [bufferWriter, 4156335180U, clientRpcParams, RpcDelivery.Reliable]);
 						LateCompanyPlugin.logger.LogMessage("End sync");
 					}
 				}
 				catch (Exception ex)
 				{
 					Debug.LogError($"Error while syncing unlockables in server. Quitting server: {ex}");
-					GameNetworkManager.Instance.disconnectionReasonMessage =
-						"An error occured while syncing ship objects! The file may be corrupted. Please report the glitch!";
-					GameNetworkManager.Instance.Disconnect();
 				}
 			}
 		}

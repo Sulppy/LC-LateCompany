@@ -1,7 +1,6 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 using LateCompany.Core;
 
@@ -10,7 +9,6 @@ using GameNetcodeStuff;
 
 using HarmonyLib;
 using Steamworks.Data;
-using UnityEngine;
 
 namespace LateCompany.Patches;
 
@@ -18,7 +16,6 @@ namespace LateCompany.Patches;
 [HarmonyPatch(typeof(StartOfRound))]
 internal class StartOfRoundPatch
 {
-
 	private static readonly MethodInfo BeginSendClientRpc =
 		typeof(NetworkBehaviour).GetMethod("__beginSendClientRpc", BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -30,9 +27,10 @@ internal class StartOfRoundPatch
 	[HarmonyPostfix]
 	private static void OnPlayerConnectedClientRpcPostfix(ulong clientId, int assignedPlayerObjectId, int levelID, int randomSeed)
 	{
+		if (!NetworkManager.Singleton.IsHost) return;
 		StartOfRound sor = StartOfRound.Instance;
 		RoundManager rm = RoundManager.Instance;
-		
+
 		ClientRpcParams clientRpcParams = new()
 		{
 			Send = new ClientRpcSendParams()
@@ -40,78 +38,78 @@ internal class StartOfRoundPatch
 				TargetClientIds = new List<ulong> { clientId },
 			},
 		};
-		
+
 		List<PlayerControllerB> allplayers = PJoin.GetAllPlayers();
 		PlayerControllerB ply = allplayers[assignedPlayerObjectId];
 		PlayerControllerB connectedplayer = StartOfRound.Instance.allPlayerScripts[assignedPlayerObjectId];
-		
-		if (allplayers.Count + 1 > StartOfRound.Instance.allPlayerScripts.Length && PJoin.LobbyJoinable) PJoin.SetLobbyJoinable(false);
-		
-		// Make their player model visible.
-			
-		if (connectedplayer.justConnected && !connectedplayer.isPlayerControlled)
-		{
-			LateCompanyPlugin.logger.LogMessage("Starting sync player");
 
-			try
+		if (allplayers.Count + 1 > StartOfRound.Instance.allPlayerScripts.Length && PJoin.LobbyJoinable)
+			PJoin.SetLobbyJoinable(false);
+
+		LateCompanyPlugin.logger.LogMessage("Starting sync player");
+
+		try
+		{
+
+			StartOfRound.Instance.allPlayerObjects[assignedPlayerObjectId]
+				.GetComponentInChildren<PlayerControllerB>().playerUsername = connectedplayer.playerUsername;
+
+			// Make their player model visible.
+			ply.DisablePlayerModel(sor.allPlayerObjects[assignedPlayerObjectId], true, true);
+
+			// Tell new client sync suits
 			{
-				StartOfRound.Instance.allPlayerObjects[assignedPlayerObjectId]
-					.GetComponentInChildren<PlayerControllerB>().playerUsername = connectedplayer.playerUsername;
-				
-				ply.DisablePlayerModel(sor.allPlayerObjects[assignedPlayerObjectId], true, true);
-				
+				FastBufferWriter fastBufferWriter =
+					(FastBufferWriter)BeginSendClientRpc.Invoke(sor,
+						[2369901769U, clientRpcParams, 0]);
+				EndSendClientRpc.Invoke(sor,
+					[fastBufferWriter, 2369901769U, clientRpcParams, 0]);
+			}
+
+			PlayerSync.SyncUnlockables(clientRpcParams);
+
+			StartOfRound.Instance.StartTrackingAllPlayerVoices();
+
+			if (sor.IsServer && !sor.inShipPhase)
+			{
+				GameNetworkManager.Instance.gameHasStarted = true;
+				// Tell the new client to generate the level.
 				{
 					FastBufferWriter fastBufferWriter =
-						(FastBufferWriter)BeginSendClientRpc.Invoke(sor,
-							new object[] { 2369901769U, clientRpcParams, 0 });
-					EndSendClientRpc.Invoke(sor,
-						new object[] { fastBufferWriter, 2369901769U, clientRpcParams, 0 });
+						(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
+							[1193916134U, clientRpcParams, 0]);
+					BytePacker.WriteValueBitPacked(fastBufferWriter, randomSeed);
+					BytePacker.WriteValueBitPacked(fastBufferWriter, levelID);
+					BytePacker.WriteValueBitPacked(fastBufferWriter,
+						(int)rm.currentLevel.currentWeather + 0xFF);
+					EndSendClientRpc.Invoke(rm,
+						[fastBufferWriter, 1193916134U, clientRpcParams, 0]);
+
 				}
-				
-				//PlayerSync.SyncUnlockables(clientRpcParams);
 
-				StartOfRound.Instance.StartTrackingAllPlayerVoices();
-
-				if (sor.IsServer && !sor.inShipPhase)
+				// And also tell them that everyone is done generating it.
 				{
-					GameNetworkManager.Instance.gameHasStarted = true;
-					// Tell the new client to generate the level.
-					{
-						FastBufferWriter fastBufferWriter =
-							(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
-								new object[] { 1193916134U, clientRpcParams, 0 });
-						BytePacker.WriteValueBitPacked(fastBufferWriter, randomSeed);
-						BytePacker.WriteValueBitPacked(fastBufferWriter, levelID);
-						BytePacker.WriteValueBitPacked(fastBufferWriter,
-							(int)rm.currentLevel.currentWeather + 0xFF);
-						EndSendClientRpc.Invoke(rm,
-							new object[] { fastBufferWriter, 1193916134U, clientRpcParams, 0 });
-
-					}
-
-					// And also tell them that everyone is done generating it.
-					{
-						FastBufferWriter fastBufferWriter =
-							(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
-								new object[] { 2729232387U, clientRpcParams, 0 });
-						EndSendClientRpc.Invoke(rm,
-							new object[] { fastBufferWriter, 2729232387U, clientRpcParams, 0 });
-					}
+					FastBufferWriter fastBufferWriter =
+						(FastBufferWriter)BeginSendClientRpc.Invoke(rm,
+							[2729232387U, clientRpcParams, 0]);
+					EndSendClientRpc.Invoke(rm,
+						[fastBufferWriter, 2729232387U, clientRpcParams, 0]);
 				}
+			}
 
-				
-				LateCompanyPlugin.logger.LogMessage("Sync successful");
-			}
-			catch (Exception ex)
-			{
-				LateCompanyPlugin.logger.LogError($"Sync error: {ex}");
-			}
+
+			LateCompanyPlugin.logger.LogMessage("Sync successful");
 		}
+		catch (Exception ex)
+		{
+			LateCompanyPlugin.logger.LogError($"Sync error: {ex}");
+		}
+
 		sor.livingPlayers = PJoin.GetAlivePlayers().Count;
 	}
 
+
 	[HarmonyPatch("OnPlayerDC")]
-	[HarmonyWrapSafe]
 	[HarmonyPostfix]
 	private static void OnPlayerDCPatch()
 	{
@@ -121,7 +119,6 @@ internal class StartOfRoundPatch
 	}
 
 	[HarmonyPatch("SetShipReadyToLand")]
-	[HarmonyWrapSafe]
 	[HarmonyPostfix]
 	private static void SetShipReadyToLandPatch()
 	{
@@ -130,7 +127,6 @@ internal class StartOfRoundPatch
 	}
 
 	[HarmonyPatch("StartGame")]
-	[HarmonyWrapSafe]
 	[HarmonyPostfix]
 	private static void StartGamePatch()
 	{
@@ -138,7 +134,6 @@ internal class StartOfRoundPatch
 	}
 
 	[HarmonyPatch("OnShipLandedMiscEvents")]
-	[HarmonyWrapSafe]
 	[HarmonyPostfix]
 	private static void OnShipLandedMiscEventsPostfix()
 	{
@@ -148,7 +143,6 @@ internal class StartOfRoundPatch
 	}
 	
 	[HarmonyPatch("ShipLeave")]
-	[HarmonyWrapSafe]
 	[HarmonyPrefix]
 	private static void ShipLeavePatch()
 	{
@@ -156,10 +150,10 @@ internal class StartOfRoundPatch
 	}
 	
 	[HarmonyPatch("Start")]
-	[HarmonyWrapSafe]
 	[HarmonyPostfix]
 	private static void StartPostfix()
 	{
+		if (!NetworkManager.Singleton.IsHost) return;
 		if(GameNetworkManager.Instance.currentLobby.HasValue) PJoin.Currectlobby = (Lobby)GameNetworkManager.Instance.currentLobby;
 	}
 }
